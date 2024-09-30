@@ -1,8 +1,9 @@
 import json
 import requests
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 import logging
+
 
 logger = logging.getLogger(__name__)
 
@@ -13,52 +14,42 @@ options = {
     }
 }
 
+global last_message_id 
 last_message_id = None
 
-@csrf_exempt
+def fetch_messages():
+    logging.info('Fetching messages...')
+    print('Fetching messages...')
+    try:
+        response = requests.get('https://gate.whapi.cloud/messages/list/120363317761180470%40g.us?count=100', headers=options['headers'])
+        response.raise_for_status()
+        data = response.json()
+        logging.info('Parsed response: %s', data)
+        return data
+
+    except requests.exceptions.HTTPError as http_err:
+        logging.error('HTTP error occurred: %s', http_err)
+    except requests.exceptions.ConnectionError as conn_err:
+        logging.error('Connection error occurred: %s', conn_err)
+    except requests.exceptions.Timeout as timeout_err:
+        logging.error('Timeout error occurred: %s', timeout_err)
+    except requests.exceptions.RequestException as req_err:
+        logging.error('Request error occurred: %s', req_err)
+
+
 def fetch_group_messages(request):
     if request.method == 'GET':
-        group_id = "120363317761180470@g.us"
-        url = f"https://gate.whapi.cloud/messages/list/{group_id}?count=100"
-        headers = options['headers']
-        
         try:
-            response = requests.get(url, headers=headers)
-            response.raise_for_status()
-            data = response.json()
-            logger.info('Parsed response: %s', data)
-
-            if 'groups' in data and len(data['groups']) > 0:
-                group = next((g for g in data['groups'] if g['id'] == group_id), None)
-                if group and 'last_message' in group:
-                    new_message = group['last_message']
-                    global last_message_id
-                    if last_message_id != new_message['id']:
-                        last_message_id = new_message['id']
-                        logger.info('New message: %s', new_message)
-                        return JsonResponse(new_message)
-                    else:
-                        logger.info('No new messages.')
-                        return JsonResponse({'message': 'No new messages.'})
-                else:
-                    logger.info('No messages found.')
-                    return JsonResponse({'message': 'No messages found.'})
-            else:
-                logger.info('No groups found.')
-                return JsonResponse({'message': 'No groups found.'})
-        except requests.exceptions.HTTPError as http_err:
-            logger.error('HTTP error occurred: %s', http_err)
-            return JsonResponse({'error': 'HTTP error occurred'}, status=500)
-        except requests.exceptions.ConnectionError as conn_err:
-            logger.error('Connection error occurred: %s', conn_err)
-            return JsonResponse({'error': 'Connection error occurred'}, status=500)
-        except requests.exceptions.Timeout as timeout_err:
-            logger.error('Timeout error occurred: %s', timeout_err)
-            return JsonResponse({'error': 'Timeout error occurred'}, status=500)
+            print(f"###Lable: 1 {last_message_id}")
+            response = fetch_messages()
+            print(response)
+            return HttpResponse(response)
+        
         except requests.exceptions.RequestException as req_err:
             logger.error('Request error occurred: %s', req_err)
-            return JsonResponse({'error': 'Request error occurred'}, status=500)
-    return JsonResponse({'status': 'error'}, status=400)
+            return HttpResponse(f"status error. status=500")
+        
+    return HttpResponse(f"status error. status=400")
 
 @csrf_exempt
 def whatsapp_webhook(request):
