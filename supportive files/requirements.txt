@@ -1,0 +1,8 @@
+Django>=5.1
+psycopg2>=2.8
+djangorestframework
+django-cors-headers
+requests
+channels 
+channels-redis
+daphne>=4.0.0
